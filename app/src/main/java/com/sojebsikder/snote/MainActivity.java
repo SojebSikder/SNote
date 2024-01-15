@@ -9,7 +9,11 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.view.View;
+import android.widget.Toast;
 
+
+import androidx.appcompat.widget.PopupMenu;
+import androidx.appcompat.widget.SearchView;
 import androidx.cardview.widget.CardView;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.StaggeredGridLayoutManager;
@@ -27,6 +31,8 @@ public class MainActivity extends AppCompatActivity {
     List<Note> noteList = new ArrayList<>();
     RoomDB database;
     FloatingActionButton fab_add;
+    SearchView searchView_home;
+    Note selectedNote;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,6 +41,7 @@ public class MainActivity extends AppCompatActivity {
 
         recyclerView = findViewById(R.id.recycler_view_home);
         fab_add = findViewById(R.id.fab_add);
+        searchView_home = findViewById(R.id.searchView_home);
 
         database = RoomDB.getInstance(this);
         noteList = database.mainDAO().getAll();
@@ -48,6 +55,31 @@ public class MainActivity extends AppCompatActivity {
                 startActivityForResult(intent, 100); // 100 is for add
             }
         });
+
+        searchView_home.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String s) {
+                return false;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String s) {
+                filter(s);
+                return true;
+            }
+        });
+    }
+
+    private void filter(String s) {
+        List<Note> filteredList = new ArrayList<>();
+
+        for (Note note : noteList) {
+            if (note.getTitle().toLowerCase().contains(s.toLowerCase()) || note.getContent().toLowerCase().contains(s.toLowerCase())) {
+                filteredList.add(note);
+            }
+        }
+
+        noteListAdapter.filterList(filteredList);
     }
 
     @Override
@@ -94,8 +126,40 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onLongClick(Note note, CardView cardView) {
-
+            selectedNote = note;
+            showPopupMenu(cardView);
         }
     };
+
+    private void showPopupMenu(CardView cardView) {
+        PopupMenu popupMenu = new PopupMenu(MainActivity.this, cardView);
+        popupMenu.inflate(R.menu.popup_menu);
+        popupMenu.setOnMenuItemClickListener(menuItem -> {
+            int itemId = menuItem.getItemId();
+            if (itemId == R.id.menu_pin) {
+                selectedNote.setPinned(!selectedNote.isPinned());
+                database.mainDAO().pin(selectedNote.getId(), selectedNote.isPinned());
+                noteList.clear();
+                noteList.addAll(database.mainDAO().getAll());
+                noteListAdapter.notifyDataSetChanged();
+
+                if(selectedNote.isPinned()) {
+                    Toast.makeText(MainActivity.this, "Pinned", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(MainActivity.this, "Unpinned", Toast.LENGTH_SHORT).show();
+                }
+            } else if (itemId == R.id.menu_delete) {
+                database.mainDAO().delete(selectedNote);
+//                noteList.clear();
+//                noteList.addAll(database.mainDAO().getAll());
+//                noteListAdapter.notifyDataSetChanged();
+                noteList.remove(selectedNote);
+                noteListAdapter.notifyDataSetChanged();
+                Toast.makeText(MainActivity.this, "Deleted", Toast.LENGTH_SHORT).show();
+            }
+            return false;
+        });
+        popupMenu.show();
+    }
 
 }

@@ -100,6 +100,11 @@ public class NoteListAdapter extends RecyclerView.Adapter<NoteViewHolder> {
     public int getItemCount() {
         return list.size();
     }
+
+    public void filterList(List<Note> filteredList){
+        list = filteredList;
+        notifyDataSetChanged();
+    }
 }
 
 class NoteViewHolder extends RecyclerView.ViewHolder{
